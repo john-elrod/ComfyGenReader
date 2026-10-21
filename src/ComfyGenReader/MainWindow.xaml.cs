@@ -128,10 +128,19 @@ public partial class MainWindow : Window
         catch (Exception ex) { session.ShowError(ex); }
     }
 
-    private static string[] DroppedPaths(DragEventArgs e) =>
-        e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] paths
-            ? paths
-            : [];
+    private static string[] DroppedPaths(DragEventArgs e)
+    {
+        try
+        {
+            return e.Data.GetDataPresent(DataFormats.FileDrop) && e.Data.GetData(DataFormats.FileDrop) is string[] paths
+                ? paths
+                : [];
+        }
+        catch (Exception)
+        {
+            return []; // the drag source's data could not be read (e.g. a COM error from another app): nothing to open
+        }
+    }
 
     private void Session_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
@@ -156,7 +165,7 @@ public partial class MainWindow : Window
 
             var isVideo = path is not null && kind == MediaKind.Video;
             Player.Visibility = VideoControlsHost.Visibility = isVideo ? Visibility.Visible : Visibility.Collapsed;
-            if (isVideo) Player.Load(path!);
+            if (isVideo) await Player.LoadAsync(path!);
             else Player.Unload();
 
             if (path is null || kind != MediaKind.Image) return;

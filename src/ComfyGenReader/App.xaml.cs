@@ -27,7 +27,7 @@ public partial class App : Application
             ReportError(args.ExceptionObject as Exception
                         ?? new InvalidOperationException($"Non-exception error: {args.ExceptionObject}"));
 
-        VideoPlayer.InitializeLibVlc();
+        VideoPlayer.StartLibVlcWarmUp();
 
         try
         {

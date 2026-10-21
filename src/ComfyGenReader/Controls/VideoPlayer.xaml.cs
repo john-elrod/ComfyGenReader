@@ -18,7 +18,7 @@ public partial class VideoPlayer : UserControl, IDisposable
 {
     private const int PreviewWidth = 160;
     private static readonly TimeSpan ScrubDebounce = TimeSpan.FromMilliseconds(120);
-    private static Exception? initError;
+    private static Task<LibVLC>? warmUp;
 
     private readonly Dictionary<int, BitmapSource> scrubCache = [];
     private readonly DispatcherTimer scrubTimer = new() { Interval = ScrubDebounce };
@@ -47,27 +47,50 @@ public partial class VideoPlayer : UserControl, IDisposable
 
     public event EventHandler<Exception>? Failed;
 
-    /// <summary>Loads the LibVLC natives from lib\libvlc once at startup; a failure is reported on the first Load.</summary>
-    public static void InitializeLibVlc()
+    /// <summary>
+    /// Starts loading LibVLC from lib\libvlc on a background thread at startup: creating the instance scans every
+    /// plugin DLL, which takes many seconds on a fresh extraction (antivirus scans each one) and must not block the UI.
+    /// A failure is reported on the first <see cref="LoadAsync"/>.
+    /// </summary>
+    public static void StartLibVlcWarmUp()
     {
-        try { LibVLCSharp.Shared.Core.Initialize(Path.Combine(AppContext.BaseDirectory, "lib", "libvlc")); }
-        catch (Exception ex) { initError = ex; }
+        warmUp = Task.Run(() =>
+        {
+            try { LibVLCSharp.Shared.Core.Initialize(Path.Combine(AppContext.BaseDirectory, "lib", "libvlc")); }
+            catch (Exception ex) { throw new InvalidOperationException(@"LibVLC could not be loaded from lib\libvlc.", ex); }
+            return new LibVLC("--no-video-title-show");
+        });
+        // Observed here so an unused failure never surfaces as an unobserved task exception; LoadAsync still rethrows it.
+        warmUp.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    public void Load(string path)
+    public async Task LoadAsync(string path)
     {
-        var mp = EnsurePlayer();
+        ObjectDisposedException.ThrowIf(disposed, this);
         ResetScrub();
         currentPath = path;
         lengthMs = 0;
         SetSeekBar(0);
         UpdateTime(0);
-
         // Every file starts muted (VolumeChanged re-applies it if the audio output is recreated).
         muted = true;
-        mp.Mute = true;
         UpdateMuteButton(true);
 
+        if (player is null)
+        {
+            var pending = warmUp ?? throw new InvalidOperationException("LibVLC warm-up was not started.");
+            PreparingText.Visibility = Visibility.Visible;
+            LibVLC vlc;
+            try { vlc = await pending; }
+            catch when (disposed || currentPath != path) { return; } // superseded while LibVLC was loading
+            finally { PreparingText.Visibility = Visibility.Collapsed; }
+            if (disposed) return;
+            CreatePlayer(vlc); // on the UI thread; a no-op if another pending load got here first
+            if (currentPath != path) return;
+        }
+
+        var mp = player!;
+        mp.Mute = true;
         using var media = new Media(libVlc!, path, FromType.FromPath);
         if (!mp.Play(media))
             throw new InvalidOperationException($"LibVLC could not start {Path.GetFileName(path)}.");
@@ -96,15 +119,11 @@ public partial class VideoPlayer : UserControl, IDisposable
         View.Dispose();
     }
 
-    private MediaPlayer EnsurePlayer()
+    private void CreatePlayer(LibVLC vlc)
     {
-        ObjectDisposedException.ThrowIf(disposed, this);
-        if (player is not null) return player;
-        if (initError is not null)
-            throw new InvalidOperationException(@"LibVLC could not be loaded from lib\libvlc.", initError);
-
-        libVlc = new LibVLC("--no-video-title-show");
-        var mp = new MediaPlayer(libVlc) { Scale = 0, AspectRatio = null }; // fit to the view, no distortion
+        if (player is not null) return;
+        libVlc = vlc;
+        var mp = new MediaPlayer(vlc) { Scale = 0, AspectRatio = null }; // fit to the view, no distortion
         mp.Playing += (_, _) => OnUi(() => UpdatePlayButton(true));
         // Stop() destroys the audio output and a new one starts with the OS session's last mute state,
         // ignoring a Mute set while none existed. Every new output reports its volume: re-apply ours then.
@@ -125,7 +144,7 @@ public partial class VideoPlayer : UserControl, IDisposable
             Failed?.Invoke(this, new InvalidOperationException($"LibVLC could not play {Path.GetFileName(currentPath)}.")));
 
         View.MediaPlayer = mp;
-        return player = mp;
+        player = mp;
     }
 
     /// <summary>LibVLC raises events on its own threads (and must not be called back from them).</summary>
