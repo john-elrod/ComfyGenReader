@@ -76,4 +76,68 @@ public class FfmpegToolsTests(FfmpegFixture fx) : IClassFixture<FfmpegFixture>
     [Fact]
     public async Task ReadTags_NotAVideo_Throws() =>
         await Assert.ThrowsAsync<InvalidOperationException>(() => FfmpegTools.ReadTagsAsync(fx.TextFilePath, TestContext.Current.CancellationToken));
+
+    [Fact]
+    public async Task GrabFrame_NotAVideo_ReturnsNull() =>
+        Assert.Null(await FfmpegTools.GrabFramePngAsync(fx.TextFilePath, TimeSpan.Zero, 64, TestContext.Current.CancellationToken));
+
+    [Fact]
+    public async Task ReadTags_CallerContextBlockedPastTimeout_StillReturnsTags()
+    {
+        var path = fx.PathFor("mp4");
+        // Warm ffprobe so the short timeout below measures only the call under test.
+        await FfmpegTools.ReadTagsAsync(path, TestContext.Current.CancellationToken);
+
+        var saved = FfmpegTools.ReadTagsTimeout;
+        FfmpegTools.ReadTagsTimeout = TimeSpan.FromSeconds(1);
+        try
+        {
+            using var ui = new SingleThreadContext();
+            var tags = await ui.Run(async () =>
+            {
+                var pending = FfmpegTools.ReadTagsAsync(path);
+                Thread.Sleep(TimeSpan.FromSeconds(2)); // the UI thread is busy (e.g. loading LibVLC) past the timeout
+                return await pending;
+            });
+            Assert.NotNull(MetadataParser.Parse(tags).Prompt);
+        }
+        finally { FfmpegTools.ReadTagsTimeout = saved; }
+    }
+
+    /// <summary>A dispatcher-like context: one thread runs posted callbacks in order.</summary>
+    private sealed class SingleThreadContext : SynchronizationContext, IDisposable
+    {
+        private readonly System.Collections.Concurrent.BlockingCollection<(SendOrPostCallback Callback, object? State)> queue = [];
+        private readonly Thread thread;
+
+        public SingleThreadContext()
+        {
+            thread = new Thread(() =>
+            {
+                SetSynchronizationContext(this);
+                foreach (var (callback, state) in queue.GetConsumingEnumerable()) callback(state);
+            }) { IsBackground = true };
+            thread.Start();
+        }
+
+        public override void Post(SendOrPostCallback d, object? state) => queue.Add((d, state));
+
+        public Task<T> Run<T>(Func<Task<T>> func)
+        {
+            var tcs = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Post(async _ =>
+            {
+                try { tcs.SetResult(await func()); }
+                catch (Exception ex) { tcs.SetException(ex); }
+            }, null);
+            return tcs.Task;
+        }
+
+        public void Dispose()
+        {
+            queue.CompleteAdding();
+            thread.Join();
+            queue.Dispose();
+        }
+    }
 }

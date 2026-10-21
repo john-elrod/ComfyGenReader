@@ -7,7 +7,8 @@ namespace ComfyGenReader.Core.Media;
 /// <summary>Wrappers around the bundled ffprobe/ffmpeg executables.</summary>
 public static class FfmpegTools
 {
-    private static readonly TimeSpan ReadTagsTimeout = TimeSpan.FromSeconds(30);
+    /// <summary>How long ffprobe may run before it is killed; settable for tests.</summary>
+    internal static TimeSpan ReadTagsTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
     public static string ToolsDirectory { get; } = Path.Combine(AppContext.BaseDirectory, "lib", "ffmpeg");
 
@@ -17,7 +18,7 @@ public static class FfmpegTools
         timeout.CancelAfter(ReadTagsTimeout);
 
         var (code, stdout, stderr) = await RunTextAsync("ffprobe.exe",
-            ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path], timeout.Token);
+            ["-v", "error", "-print_format", "json", "-show_format", "-show_streams", path], timeout.Token).ConfigureAwait(false);
         if (code != 0)
             throw new InvalidOperationException(stderr.Length > 0 ? stderr : $"ffprobe exited with code {code}");
 
@@ -42,11 +43,11 @@ public static class FfmpegTools
     public static async Task<byte[]?> GrabFramePngAsync(string path, TimeSpan at, int width, CancellationToken ct)
     {
         var seconds = at.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
-        var (_, stdout, _) = await RunAsync("ffmpeg.exe",
+        var (code, stdout, _) = await RunAsync("ffmpeg.exe",
             ["-v", "error", "-ss", seconds, "-i", path, "-frames:v", "1",
              "-vf", $"scale='min(iw,{width.ToString(CultureInfo.InvariantCulture)})':-2", // never upscale
-             "-f", "image2pipe", "-c:v", "png", "-"], ct);
-        return stdout.Length == 0 ? null : stdout.ToArray();
+             "-f", "image2pipe", "-c:v", "png", "-"], ct).ConfigureAwait(false);
+        return code != 0 || stdout.Length == 0 ? null : stdout;
     }
 
     private static void AddTags(List<KeyValuePair<string, string>> tags, JsonElement owner, string prefix)
@@ -58,7 +59,7 @@ public static class FfmpegTools
 
     private static async Task<(int Code, string Text, string Error)> RunTextAsync(string exe, string[] args, CancellationToken ct)
     {
-        var (code, bytes, err) = await RunAsync(exe, args, ct);
+        var (code, bytes, err) = await RunAsync(exe, args, ct).ConfigureAwait(false);
         return (code, System.Text.Encoding.UTF8.GetString(bytes), err);
     }
 
@@ -76,26 +77,36 @@ public static class FfmpegTools
 
         using var process = new Process { StartInfo = psi };
         process.Start();
+        var killed = false;
+        // Every await below uses ConfigureAwait(false): a busy caller thread (e.g. the UI) must not count against ct.
         using var registration = ct.Register(() =>
         {
-            // Already exited or exiting: nothing to kill, and Cancel() must never throw.
-            try { process.Kill(entireProcessTree: true); }
+            // ffmpeg/ffprobe spawn no children, so Kill() suffices. Already exited or exiting: nothing to kill,
+            // and Cancel() must never throw.
+            try
+            {
+                if (process.HasExited) return;
+                process.Kill();
+                killed = true;
+            }
             catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         });
 
         var outTask = ReadAllAsync(process.StandardOutput.BaseStream);
         var errTask = process.StandardError.ReadToEndAsync();
-        await process.WaitForExitAsync(CancellationToken.None);
-        var stdout = await outTask;
-        var stderr = (await errTask).Trim();
-        ct.ThrowIfCancellationRequested();
+        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+        var stdout = await outTask.ConfigureAwait(false);
+        var stderr = (await errTask.ConfigureAwait(false)).Trim();
+        registration.Dispose(); // waits for a running callback, so `killed` is final
+        // A result that arrived before cancellation is kept; only a killed run is a cancellation.
+        if (killed) throw new OperationCanceledException(ct);
         return (process.ExitCode, stdout, stderr);
     }
 
     private static async Task<byte[]> ReadAllAsync(Stream s)
     {
         using var ms = new MemoryStream();
-        await s.CopyToAsync(ms);
+        await s.CopyToAsync(ms).ConfigureAwait(false);
         return ms.ToArray();
     }
 }
