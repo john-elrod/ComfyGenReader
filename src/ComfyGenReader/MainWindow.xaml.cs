@@ -171,18 +171,20 @@ public partial class MainWindow : Window
 
     private static BitmapImage DecodeWithWic(string path)
     {
-        var image = new BitmapImage();
-        image.BeginInit();
-        image.UriSource = new Uri(Path.GetFullPath(path));
-        image.CacheOption = BitmapCacheOption.OnLoad;
-        image.EndInit();
-        image.Freeze();
-        return image;
+        // A stream rather than UriSource: Uri unescapes %XX sequences that are legal in file names.
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        return DecodeStream(stream);
     }
 
     private static BitmapImage DecodePng(byte[] png)
     {
         using var stream = new MemoryStream(png);
+        return DecodeStream(stream);
+    }
+
+    /// <summary>Decodes fully (OnLoad) so the caller can dispose the stream and nothing stays locked.</summary>
+    private static BitmapImage DecodeStream(Stream stream)
+    {
         var image = new BitmapImage();
         image.BeginInit();
         image.StreamSource = stream;

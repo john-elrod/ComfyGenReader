@@ -66,6 +66,14 @@ public class FfmpegToolsTests(FfmpegFixture fx) : IClassFixture<FfmpegFixture>
     }
 
     [Fact]
+    public async Task GrabFrame_NeverUpscales()
+    {
+        var png = await FfmpegTools.GrabFramePngAsync(fx.PathFor("mp4"), TimeSpan.Zero, 4096, TestContext.Current.CancellationToken);
+        var width = (png![16] << 24) | (png[17] << 16) | (png[18] << 8) | png[19];
+        Assert.Equal(64, width);
+    }
+
+    [Fact]
     public async Task ReadTags_NotAVideo_Throws() =>
         await Assert.ThrowsAsync<InvalidOperationException>(() => FfmpegTools.ReadTagsAsync(fx.TextFilePath, TestContext.Current.CancellationToken));
 }

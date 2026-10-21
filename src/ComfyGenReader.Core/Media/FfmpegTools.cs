@@ -44,7 +44,7 @@ public static class FfmpegTools
         var seconds = at.TotalSeconds.ToString("0.###", CultureInfo.InvariantCulture);
         var (_, stdout, _) = await RunAsync("ffmpeg.exe",
             ["-v", "error", "-ss", seconds, "-i", path, "-frames:v", "1",
-             "-vf", $"scale={width.ToString(CultureInfo.InvariantCulture)}:-2",
+             "-vf", $"scale='min(iw,{width.ToString(CultureInfo.InvariantCulture)})':-2", // never upscale
              "-f", "image2pipe", "-c:v", "png", "-"], ct);
         return stdout.Length == 0 ? null : stdout.ToArray();
     }
