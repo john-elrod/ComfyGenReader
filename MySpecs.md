@@ -41,7 +41,3 @@ If third party dlls and other files are needed to keep this portable, keep them 
 
 
 
-Read this file and create the instructions to build this new software.
-
-
-
