@@ -43,8 +43,7 @@
 *.pdb
 
 # Kernel Module Compile Results
-*.mod*
-*.cmd
+# (*.mod* and *.cmd removed: on case-insensitive Windows they also match .NET/Windows files such as *.Models.cs or build.cmd)
 .tmp_versions/
 modules.order
 Module.symvers
