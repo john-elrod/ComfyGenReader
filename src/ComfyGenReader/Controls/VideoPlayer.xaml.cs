@@ -208,7 +208,10 @@ public partial class VideoPlayer : UserControl, IDisposable
         if (currentPath is null || lengthMs <= 0 || SeekBar.ActualWidth <= 0) return;
         var x = Math.Clamp(e.GetPosition(SeekBar).X, 0, SeekBar.ActualWidth);
         scrubHover = true;
-        scrubSecond = (int)(x / SeekBar.ActualWidth * lengthMs / 1000);
+        // Clamped to the last whole second that has frames (x == ActualWidth would give the full length).
+        var second = Math.Min((int)(x / SeekBar.ActualWidth * lengthMs / 1000), (int)((lengthMs - 1) / 1000));
+        if (second != scrubSecond) scrubCts?.Cancel(); // the in-flight grab is for a second no longer hovered
+        scrubSecond = second;
         ScrubPopup.HorizontalOffset = x - PreviewWidth / 2.0;
 
         scrubTimer.Stop();
@@ -235,7 +238,7 @@ public partial class VideoPlayer : UserControl, IDisposable
             if (cts.IsCancellationRequested || path != currentPath || png is null) return;
             var frame = DecodePng(png);
             scrubCache[second] = frame;
-            if (scrubHover) ShowScrubFrame(frame);
+            if (scrubHover && second == scrubSecond) ShowScrubFrame(frame); // never replace a newer second's frame
         }
         catch (OperationCanceledException) { }
         catch (Exception ex) { Failed?.Invoke(this, ex); }
