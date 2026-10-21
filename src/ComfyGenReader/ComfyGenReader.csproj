@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <!-- Portable publish: self-contained single-file exe, not trimmed. -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <!-- LibVLC natives (VideoLAN.LibVLC.Windows): x64 only, copied to lib\libvlc\ next to the exe. -->
+    <VlcWindowsX64TargetDir>lib\libvlc</VlcWindowsX64TargetDir>
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ComfyGenReader.Core\ComfyGenReader.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
+  </ItemGroup>
+
+  <!-- LibVLC plugins not needed for local-file playback, pruned so fewer DLLs are scanned when LibVLC starts.
+       libx26410b (x264 encoder) is also GPL, unlike the rest of what ships. Paths are relative to the package's
+       build\x64\ folder; %2A%2A is an escaped ** (expanded by the package's targets, not here). -->
+  <ItemGroup>
+    <VlcWindowsX64ExcludeFiles Include="plugins\stream_out\%2A%2A;plugins\access_output\%2A%2A;plugins\mux\%2A%2A;plugins\visualization\%2A%2A;plugins\services_discovery\%2A%2A;plugins\video_splitter\%2A%2A;plugins\keystore\%2A%2A" />
+    <VlcWindowsX64ExcludeFiles Include="plugins\codec\libx26410b_plugin.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\third_party\ffmpeg\**" Exclude="..\..\third_party\ffmpeg\ffplay.exe;..\..\third_party\ffmpeg\.lock-sha256" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+
+  <!-- LibVLC and FFmpeg must stay as loose files under lib\ next to the exe (their paths are resolved from AppContext.BaseDirectory);
+       without this, single-file publish bundles their .dll/.exe into ComfyGenReader.exe. -->
+  <Target Name="KeepLibFilesOutOfSingleFile" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <!-- Import libraries are only needed to link against LibVLC, not to run. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.lib' And $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('lib\'))" />
+      <ResolvedFileToPublish Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('lib\'))" ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+
+</Project>
