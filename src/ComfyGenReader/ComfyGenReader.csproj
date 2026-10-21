@@ -25,7 +25,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\..\third_party\ffmpeg\**" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="..\..\third_party\ffmpeg\**" Exclude="..\..\third_party\ffmpeg\ffplay.exe" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 
@@ -33,6 +33,8 @@
        without this, single-file publish bundles their .dll/.exe into ComfyGenReader.exe. -->
   <Target Name="KeepLibFilesOutOfSingleFile" AfterTargets="ComputeResolvedFilesToPublishList">
     <ItemGroup>
+      <!-- Import libraries are only needed to link against LibVLC, not to run. -->
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Extension)' == '.lib' And $([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('lib\'))" />
       <ResolvedFileToPublish Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('lib\'))" ExcludeFromSingleFile="true" />
     </ItemGroup>
   </Target>

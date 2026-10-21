@@ -4,10 +4,11 @@ ComfyGenReader bundles the components below. Each is used unmodified under its o
 
 | Component | Version | License | Source |
 |---|---|---|---|
-| FFmpeg (BtbN `lgpl-shared` build; ffmpeg/ffprobe + shared libs in `lib\ffmpeg\`) | n9.0.2 (build autobuild-2026-10-20-13-08, `n9.0.2-29-g6dfaba896f`) | LGPL v2.1 or later | https://ffmpeg.org/ , https://github.com/BtbN/FFmpeg-Builds , https://git.ffmpeg.org/ffmpeg.git |
+| FFmpeg (BtbN `lgpl-shared` build; ffmpeg, ffprobe and shared libs in `lib\ffmpeg\`) | n9.0.2 (build autobuild-2026-10-20-13-08, `n9.0.2-29-g6dfaba896f`) | LGPL v2.1 or later | https://ffmpeg.org/ , https://github.com/BtbN/FFmpeg-Builds , https://git.ffmpeg.org/ffmpeg.git |
 | LibVLC / VLC native libraries (`lib\libvlc\`, NuGet `VideoLAN.LibVLC.Windows`) | 3.0.24 | LGPL v2.1 or later | https://www.videolan.org/vlc/ , https://code.videolan.org/videolan/vlc , https://www.nuget.org/packages/VideoLAN.LibVLC.Windows |
-| LibVLCSharp, LibVLCSharp.WPF | 3.10.2 | LGPL v2.1 | https://github.com/videolan/libvlcsharp |
-| MetadataExtractor (with XmpCore) | 2.9.3 | Apache-2.0 | https://github.com/drewnoakes/metadata-extractor-dotnet |
+| LibVLCSharp, LibVLCSharp.WPF | 3.10.2 | LGPL-2.1-or-later | https://github.com/videolan/libvlcsharp |
+| MetadataExtractor | 2.9.3 | Apache-2.0 | https://github.com/drewnoakes/metadata-extractor-dotnet |
+| XmpCore (dependency of MetadataExtractor, bundled in the exe) | 6.1.10.1 | BSD-style license of the Adobe XMP SDK (nuspec licenseUrl https://www.adobe.com/devnet/xmp/library/eula-xmp-library-java.html; project README: "the same BSD license" as Adobe XMP SDK) | https://github.com/drewnoakes/xmp-core-dotnet/ |
 | .NET runtime (self-contained, bundled in the exe) | 10.x | MIT | https://github.com/dotnet/runtime |
 
 The LGPL components are shipped as separate shared libraries (DLLs) in `lib\`, so they can be replaced by the user with a compatible build. Corresponding source is available at the URLs above.
