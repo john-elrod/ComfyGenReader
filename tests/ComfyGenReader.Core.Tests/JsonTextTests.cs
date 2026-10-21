@@ -37,6 +37,21 @@ public class JsonTextTests
     }
 
     [Fact]
+    public void TryParseLenient_DuplicateKeys_ReturnsFalse()
+    {
+        Assert.False(JsonText.TryParseLenient("""{"a":1,"a":2}""", out var n));
+        Assert.Null(n);
+    }
+
+    [Fact]
+    public void ExpandEmbedded_LeavesDuplicateKeyJsonStringAsString()
+    {
+        var n = JsonNode.Parse("""{"p":"{\"a\":1,\"a\":2}"}""");
+        var x = JsonText.ExpandEmbedded(n)!;
+        Assert.Equal("""{"a":1,"a":2}""", (string)x["p"]!);
+    }
+
+    [Fact]
     public void ToExportJson_IsIndentedAndKeepsUnicode()
     {
         var text = JsonText.ToExportJson(JsonNode.Parse("""{"a":"é<"}""")!);

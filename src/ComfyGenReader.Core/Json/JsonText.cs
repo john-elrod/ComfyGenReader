@@ -9,6 +9,8 @@ public static class JsonText
 {
     private const int MaxEmbeddedDepth = 8;
 
+    private static readonly JsonDocumentOptions StrictDocumentOptions = new() { AllowDuplicateProperties = false };
+
     private static readonly JsonSerializerOptions ExportOptions = new()
     {
         WriteIndented = true,
@@ -28,7 +30,7 @@ public static class JsonText
 
         try
         {
-            var parsed = JsonNode.Parse(ReplaceNonFiniteTokens(text));
+            var parsed = JsonNode.Parse(ReplaceNonFiniteTokens(text), documentOptions: StrictDocumentOptions);
             if (parsed is JsonObject or JsonArray)
             {
                 node = parsed;
