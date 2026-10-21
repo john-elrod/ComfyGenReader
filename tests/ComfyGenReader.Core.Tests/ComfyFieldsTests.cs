@@ -41,6 +41,34 @@ public class ComfyFieldsTests
         var h = ComfyFields.Extract(p, JsonNode.Parse(ComfySamples.Workflow));
         Assert.Equal("7", h.Seed); Assert.Equal("a cat\nwearing a hat", h.Prompt);
     }
+    [Fact] public void WorkflowSeed_KSamplerAdvanced_UsesNoiseSeedWidget()
+    {
+        var w = JsonNode.Parse("""{"nodes":[{"id":3,"type":"KSamplerAdvanced","widgets_values":["enable",123,"randomize",20,8,"euler","normal",0,10000,"disable"]}]}""");
+        Assert.Equal("123", ComfyFields.Extract(null, w).Seed);
+    }
+    [Fact] public void WorkflowSeed_KSamplerSelectPlusRandomNoise_UsesRandomNoise()
+    {
+        var w = JsonNode.Parse("""{"nodes":[{"id":1,"type":"KSamplerSelect","widgets_values":["euler"]},{"id":2,"type":"RandomNoise","widgets_values":[456,"randomize"]},{"id":3,"type":"SamplerCustomAdvanced","widgets_values":[]}]}""");
+        Assert.Equal("456", ComfyFields.Extract(null, w).Seed);
+    }
+    [Fact] public void WorkflowSeed_OtherSampler_UsesFirstIntegralWidget()
+    {
+        var w = JsonNode.Parse("""{"nodes":[{"id":1,"type":"KSampler (Efficient)","widgets_values":["euler",1.5,"789"]}]}""");
+        Assert.Equal("789", ComfyFields.Extract(null, w).Seed);
+    }
+    [Fact] public void WorkflowPrompt_FollowsSamplerPositiveLink()
+    {
+        var w = JsonNode.Parse("""
+            {"nodes":[
+              {"id":7,"type":"CLIPTextEncode","widgets_values":["blurry"]},
+              {"id":6,"type":"CLIPTextEncode","widgets_values":["a cat"]},
+              {"id":3,"type":"KSampler","inputs":[{"name":"model","link":1},{"name":"positive","link":2},{"name":"negative","link":3}],
+               "widgets_values":[42,"randomize",20,8,"euler","normal",1]}],
+             "links":[[1,4,0,3,0,"MODEL"],[3,7,0,3,2,"CONDITIONING"],[2,6,0,3,1,"CONDITIONING"]]}
+            """);
+        var h = ComfyFields.Extract(null, w);
+        Assert.Equal("a cat", h.Prompt); Assert.Equal("42", h.Seed);
+    }
     [Fact] public void Extract_FallsBackToFirstClipTextEncode_AndSkipsMalformed()
     {
         var p = JsonNode.Parse("""{"x":5,"2":{"inputs":3},"10":{"class_type":"CLIPTextEncode","inputs":{"text":"ten"}},"9":{"class_type":"CLIPTextEncode","inputs":{"text":"nine"}}}""");

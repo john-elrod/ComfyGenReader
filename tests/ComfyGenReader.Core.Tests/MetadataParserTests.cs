@@ -20,6 +20,7 @@ public class MetadataParserTests
     {
         var comment = new JsonObject { ["prompt"] = ComfySamples.ApiPrompt, ["workflow"] = ComfySamples.Workflow }.ToJsonString();
         var r = MetadataParser.Parse([T("COMMENT", comment), T("encoder", "Lavf61.7.100")]);
+        Assert.IsType<JsonObject>(r.Prompt); Assert.IsType<JsonObject>(r.Workflow);
         Assert.NotNull(r.Prompt!["3"]); Assert.NotNull(r.Workflow!["nodes"]);
         Assert.Equal("Lavf61.7.100", (string)r.Raw["encoder"]!);
     }
@@ -46,5 +47,44 @@ public class MetadataParserTests
     {
         var r = MetadataParser.Parse([T("PROMPT", ComfySamples.ApiPrompt), T("workflow", "[1,2]")]);
         Assert.NotNull(r.Prompt); Assert.Null(r.Workflow);
+    }
+
+    // A widget whose value is a JSON-looking string (KJNodes SplineEditor/PointsEditor).
+    const string PointsWidget = """[{"x":1,"y":2}]""";
+    static readonly string WorkflowWithJsonStringWidget = new JsonObject
+    {
+        ["nodes"] = new JsonArray(new JsonObject
+        {
+            ["id"] = 1, ["type"] = "SplineEditor", ["widgets_values"] = new JsonArray(PointsWidget, 5),
+        }),
+        ["links"] = new JsonArray(),
+    }.ToJsonString();
+
+    static void AssertWidgetStaysString(JsonNode? workflow)
+    {
+        var widget = workflow!["nodes"]![0]!["widgets_values"]![0];
+        Assert.Equal(System.Text.Json.JsonValueKind.String, widget!.GetValueKind());
+        Assert.Equal(PointsWidget, (string)widget!);
+    }
+
+    [Fact] public void Export_KeepsJsonStringWidgetAsString()
+    {
+        var r = MetadataParser.Parse([T("workflow", WorkflowWithJsonStringWidget)]);
+        AssertWidgetStaysString(r.Workflow);
+        AssertWidgetStaysString(JsonNode.Parse(r.ExportJson!));
+    }
+    [Fact] public void Export_DoubleEncodedComment_KeepsJsonStringWidgetAsString()
+    {
+        var comment = new JsonObject { ["prompt"] = ComfySamples.ApiPrompt, ["workflow"] = WorkflowWithJsonStringWidget }.ToJsonString();
+        var r = MetadataParser.Parse([T("comment", comment)]);
+        Assert.IsType<JsonObject>(r.Prompt); Assert.IsType<JsonObject>(r.Workflow);
+        AssertWidgetStaysString(JsonNode.Parse(r.ExportJson!));
+    }
+    [Fact] public void Raw_StillExpandsNestedJsonStrings()
+    {
+        var comment = new JsonObject { ["workflow"] = WorkflowWithJsonStringWidget }.ToJsonString();
+        var r = MetadataParser.Parse([T("comment", comment)]);
+        var widget = r.Raw["comment"]!["workflow"]!["nodes"]![0]!["widgets_values"]![0];
+        Assert.Equal(1, (int)widget![0]!["x"]!);
     }
 }

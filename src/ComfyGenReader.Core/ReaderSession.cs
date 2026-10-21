@@ -55,6 +55,8 @@ public sealed class ReaderSession : INotifyPropertyChanged
     public async Task<bool> OpenAsync(string path, OpenSource source)
     {
         path = path.Trim().Trim('"').Trim();
+        try { if (path.Length > 0) path = Path.GetFullPath(path); }
+        catch (ArgumentException) { } // e.g. an embedded NUL: leave it for the checks below to reject
 
         if (!SupportedFiles.IsSupported(path))
         {
@@ -78,6 +80,7 @@ public sealed class ReaderSession : INotifyPropertyChanged
         SeedText = "";
         PromptText = "";
         ExportJson = null;
+        RawText = "Loading…";
         CanGoPrevious = FolderNavigator.Previous(path) != null;
         CanGoNext = FolderNavigator.Next(path) != null;
         if (source == OpenSource.User) recent.Add(path);

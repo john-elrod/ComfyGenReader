@@ -44,9 +44,9 @@ public static class MetadataParser
                 raw[uniqueKey] = value;
                 continue;
             }
-            var expanded = JsonText.ExpandEmbedded(parsed)!;
-            raw[uniqueKey] = expanded;
-            strippedNames.Add((prefix ?? key, expanded));
+            // Deep expansion is for display only; Prompt/Workflow keep JSON-looking widget strings as strings.
+            raw[uniqueKey] = JsonText.ExpandEmbedded(parsed)!;
+            strippedNames.Add((prefix ?? key, parsed));
         }
 
         JsonNode? Find(string name)
@@ -57,11 +57,15 @@ public static class MetadataParser
             foreach (var (_, node) in strippedNames)
                 if (node is JsonObject obj)
                     foreach (var p in obj)
-                        if (string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase) && p.Value is JsonObject)
-                            return p.Value.DeepClone();
+                        if (string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase) && UnwrapOnce(p.Value) is JsonObject found)
+                            return found.DeepClone();
             return null;
         }
 
         return new MetadataResult(raw, Find("prompt"), Find("workflow"));
     }
+
+    /// <summary>A property value, or what it encodes when it is a JSON string (VHS double-encodes prompt/workflow).</summary>
+    private static JsonNode? UnwrapOnce(JsonNode? value) =>
+        value is JsonValue v && v.TryGetValue<string>(out var s) && JsonText.TryParseLenient(s, out var inner) ? inner : value;
 }

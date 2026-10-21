@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Numerics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -9,14 +11,20 @@ public static class ComfyFields
 {
     const int MaxHops = 5;
     static readonly string[] ScalarInputs = ["seed", "noise_seed", "value", "int", "number", "text", "string"];
+    // widgets_values index of the seed for known node types; other "*Sampler*" types use their first integral widget.
+    static readonly Dictionary<string, int> SeedWidgetIndex = new(StringComparer.Ordinal)
+    {
+        ["KSampler"] = 0, ["KSamplerAdvanced"] = 1, ["SamplerCustom"] = 1, ["RandomNoise"] = 0,
+    };
 
     public static ComfyHighlights Extract(JsonNode? apiPrompt, JsonNode? workflow)
     {
         var nodes = OrderedApiNodes(apiPrompt);
         var seed = ApiSeed(nodes);
         var prompt = ApiPrompt(nodes);
-        if (seed.Length == 0) seed = WorkflowWidget(workflow, "KSampler", partial: true);
-        if (prompt.Length == 0) prompt = WorkflowWidget(workflow, "CLIPTextEncode", partial: false);
+        var workflowNodes = workflow?["nodes"] as JsonArray;
+        if (seed.Length == 0) seed = WorkflowSeed(workflowNodes);
+        if (prompt.Length == 0) prompt = WorkflowPrompt(workflowNodes, workflow?["links"] as JsonArray);
         return new ComfyHighlights(seed, prompt);
     }
 
@@ -113,15 +121,64 @@ public static class ComfyFields
     static JsonObject? Find(List<(string Id, JsonObject Node)> nodes, string id) =>
         nodes.FirstOrDefault(n => n.Id == id).Node;
 
-    static string WorkflowWidget(JsonNode? workflow, string typeName, bool partial)
+    static IEnumerable<(JsonObject Node, string Type)> TypedNodes(JsonArray? nodes)
     {
-        if (workflow?["nodes"] is not JsonArray arr) return "";
-        foreach (var n in arr)
-        {
-            if (n is not JsonObject node || node["type"] is not JsonValue t || !t.TryGetValue<string>(out var type)) continue;
-            if (partial ? !type.Contains(typeName, StringComparison.Ordinal) : type != typeName) continue;
-            if (node["widgets_values"] is JsonArray { Count: > 0 } w && Scalar(w[0]) is { } text) return text;
-        }
+        if (nodes is null) yield break;
+        foreach (var n in nodes)
+            if (n is JsonObject node && node["type"] is JsonValue t && t.TryGetValue<string>(out var type))
+                yield return (node, type);
+    }
+
+    static JsonArray? Widgets(JsonObject node) => node["widgets_values"] as JsonArray;
+
+    static string WorkflowSeed(JsonArray? nodes)
+    {
+        var typed = TypedNodes(nodes).ToList();
+        // Known types first, so e.g. a SamplerEulerAncestral's integral eta never wins over RandomNoise.
+        foreach (var (node, type) in typed)
+            if (SeedWidgetIndex.TryGetValue(type, out var index) && Widgets(node) is { } w && index < w.Count
+                && Integral(w[index]) is { } seed) return seed;
+        foreach (var (node, type) in typed)
+            if (!SeedWidgetIndex.ContainsKey(type) && type.Contains("Sampler", StringComparison.Ordinal)
+                && Widgets(node)?.Select(Integral).FirstOrDefault(s => s is not null) is { } seed) return seed;
         return "";
+    }
+
+    static string WorkflowPrompt(JsonArray? nodes, JsonArray? links)
+    {
+        var typed = TypedNodes(nodes).ToList();
+        // Prefer the CLIPTextEncode wired to a sampler's "positive" input; nodes[] order may put the negative first.
+        foreach (var (node, _) in typed)
+        {
+            if (PositiveOrigin(node, links) is not { } originId) continue;
+            var origin = typed.FirstOrDefault(n => n.Type == "CLIPTextEncode" && Scalar(n.Node["id"]) == originId);
+            if (origin.Node is not null && FirstWidgetText(origin.Node) is { } text) return text;
+        }
+        foreach (var (node, type) in typed)
+            if (type == "CLIPTextEncode" && FirstWidgetText(node) is { } text) return text;
+        return "";
+    }
+
+    static string? FirstWidgetText(JsonObject node) => Widgets(node) is { Count: > 0 } w ? Scalar(w[0]) : null;
+
+    // The origin node id of the link feeding this node's "positive" input; links are [id, origin, slot, target, slot, type].
+    static string? PositiveOrigin(JsonObject node, JsonArray? links)
+    {
+        if (links is null || node["inputs"] is not JsonArray inputs) return null;
+        foreach (var input in inputs)
+        {
+            if (input is not JsonObject i || Scalar(i["name"]) != "positive" || Scalar(i["link"]) is not { } linkId) continue;
+            foreach (var l in links)
+                if (l is JsonArray { Count: >= 2 } link && Scalar(link[0]) == linkId) return Scalar(link[1]);
+        }
+        return null;
+    }
+
+    // An integral number, or a string that parses as one (seeds may exceed long, hence BigInteger).
+    static string? Integral(JsonNode? value)
+    {
+        var text = Scalar(value)?.Trim();
+        return text is not null && BigInteger.TryParse(text, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out _)
+            ? text : null;
     }
 }

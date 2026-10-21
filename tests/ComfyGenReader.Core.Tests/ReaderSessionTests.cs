@@ -68,6 +68,11 @@ public sealed class ReaderSessionTests : IDisposable
     }
     [Fact] public async Task Open_TrimsQuotesAndWhitespace() =>
         Assert.True(await s.OpenAsync($"  \"{jpg}\" ", OpenSource.User));
+    [Fact] public async Task Open_NormalizesPath()
+    {
+        Assert.True(await s.OpenAsync(Path.Combine(dir, "sub", "..", "a.jpg").Replace('\\', '/'), OpenSource.User));
+        Assert.Equal(jpg, s.CurrentFile); Assert.Equal(jpg, s.PathText); Assert.Equal([jpg], s.Recent);
+    }
     [Fact] public async Task Open_Unsupported_LeavesStateAndReports()
     {
         Assert.False(await s.OpenAsync(gif, OpenSource.User));
@@ -104,6 +109,7 @@ public sealed class ReaderSessionTests : IDisposable
         loader.Gate = (_, _) => gate.Task;
         var pending = s.OpenAsync(next, OpenSource.User);
         Assert.Equal("", s.SeedText); Assert.Equal("", s.PromptText); Assert.Null(s.ExportJson);
+        Assert.Equal("Loading…", s.RawText);
         gate.SetResult();
         Assert.True(await pending);
         Assert.Equal("156680208700286", s.SeedText);
