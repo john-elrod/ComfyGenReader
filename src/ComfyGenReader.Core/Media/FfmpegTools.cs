@@ -78,7 +78,9 @@ public static class FfmpegTools
         process.Start();
         using var registration = ct.Register(() =>
         {
-            try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            // Already exited or exiting: nothing to kill, and Cancel() must never throw.
+            try { process.Kill(entireProcessTree: true); }
+            catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception) { }
         });
 
         var outTask = ReadAllAsync(process.StandardOutput.BaseStream);

@@ -3,10 +3,19 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
+    <!-- LibVLC natives (VideoLAN.LibVLC.Windows): x64 only, copied to lib\libvlc\ next to the exe. -->
+    <VlcWindowsX64TargetDir>lib\libvlc</VlcWindowsX64TargetDir>
+    <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
+    <VlcWindowsArm64Enabled>false</VlcWindowsArm64Enabled>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ComfyGenReader.Core\ComfyGenReader.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibVLCSharp.WPF" Version="3.10.2" />
+    <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
   </ItemGroup>
 
   <ItemGroup>

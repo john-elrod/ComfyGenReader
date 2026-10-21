@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using ComfyGenReader.Controls;
 using ComfyGenReader.Core;
 using ComfyGenReader.Core.Metadata;
 
@@ -25,6 +26,8 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, args) =>
             ReportError(args.ExceptionObject as Exception
                         ?? new InvalidOperationException($"Non-exception error: {args.ExceptionObject}"));
+
+        VideoPlayer.InitializeLibVlc();
 
         try
         {

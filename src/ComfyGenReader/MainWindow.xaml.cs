@@ -26,7 +26,21 @@ public partial class MainWindow : Window
         InitializeComponent();
         DataContext = session;
         session.PropertyChanged += Session_PropertyChanged;
+
+        VideoControlsHost.Content = Player.ControlsBar;
+        // The video surface is a native window above WPF; its overlay forwards drops to the left frame's handlers.
+        Player.DropOverlay.DragOver += Preview_DragOver;
+        Player.DropOverlay.Drop += Preview_Drop;
     }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        Player.Unload();
+        Player.Dispose(); // the app's one LibVLC + MediaPlayer
+        base.OnClosed(e);
+    }
+
+    private void Player_Failed(object? sender, Exception ex) => session.ShowError(ex);
 
     private async void Browse_Click(object sender, RoutedEventArgs e)
     {
@@ -139,6 +153,12 @@ public partial class MainWindow : Window
             previewCts?.Cancel();
             var ct = (previewCts = new CancellationTokenSource()).Token;
             PreviewImage.Source = null;
+
+            var isVideo = path is not null && kind == MediaKind.Video;
+            Player.Visibility = VideoControlsHost.Visibility = isVideo ? Visibility.Visible : Visibility.Collapsed;
+            if (isVideo) Player.Load(path!);
+            else Player.Unload();
+
             if (path is null || kind != MediaKind.Image) return;
 
             try
