@@ -4,7 +4,7 @@ ComfyGenReader bundles the components below. Each is used unmodified under its o
 
 | Component | Version | License | Source |
 |---|---|---|---|
-| FFmpeg (BtbN `lgpl-shared` build; ffmpeg, ffprobe and shared libs in `lib\ffmpeg\`) | n9.0.2 (build autobuild-2026-10-20-13-08, `n9.0.2-29-g6dfaba896f`) | LGPL v2.1 or later | https://ffmpeg.org/ , https://github.com/BtbN/FFmpeg-Builds , https://git.ffmpeg.org/ffmpeg.git |
+| FFmpeg (BtbN `lgpl-shared` build; ffmpeg, ffprobe and shared libs in `lib\ffmpeg\`; ffplay is not shipped) | n9.0.2 (build autobuild-2026-10-20-13-08, `n9.0.2-29-g6dfaba896f`) | LGPL v2.1 or later | https://ffmpeg.org/ , https://github.com/BtbN/FFmpeg-Builds , https://git.ffmpeg.org/ffmpeg.git |
 | LibVLC / VLC native libraries (`lib\libvlc\`, NuGet `VideoLAN.LibVLC.Windows`) | 3.0.24 | LGPL v2.1 or later | https://www.videolan.org/vlc/ , https://code.videolan.org/videolan/vlc , https://www.nuget.org/packages/VideoLAN.LibVLC.Windows |
 | LibVLCSharp, LibVLCSharp.WPF | 3.10.2 | LGPL-2.1-or-later | https://github.com/videolan/libvlcsharp |
 | MetadataExtractor | 2.9.3 | Apache-2.0 | https://github.com/drewnoakes/metadata-extractor-dotnet |
