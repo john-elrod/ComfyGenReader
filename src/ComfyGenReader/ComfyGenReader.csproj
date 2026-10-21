@@ -9,4 +9,8 @@
     <ProjectReference Include="..\ComfyGenReader.Core\ComfyGenReader.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\third_party\ffmpeg\**" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>
