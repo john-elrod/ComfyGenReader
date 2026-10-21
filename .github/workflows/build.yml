@@ -1,0 +1,67 @@
+name: Build and release
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write   # needed to create the GitHub Release on tag pushes
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Cache FFmpeg
+        uses: actions/cache@v6
+        with:
+          path: third_party/ffmpeg
+          key: ffmpeg-${{ hashFiles('tools/ffmpeg.lock.json') }}
+
+      - name: Download pinned FFmpeg
+        shell: powershell
+        run: ./tools/get-ffmpeg.ps1
+
+      - name: Test
+        run: dotnet test
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=0.0.0-ci.${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package portable zip
+        shell: powershell
+        run: ./tools/publish.ps1 -Version '${{ steps.version.outputs.value }}'
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ComfyGenReader-${{ steps.version.outputs.value }}-win-x64
+          path: artifacts/ComfyGenReader-${{ steps.version.outputs.value }}-win-x64.zip
+          if-no-files-found: error
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "artifacts/ComfyGenReader-${{ steps.version.outputs.value }}-win-x64.zip" \
+            --title "ComfyGenReader $GITHUB_REF_NAME" \
+            --generate-notes
