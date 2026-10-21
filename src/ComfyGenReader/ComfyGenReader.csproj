@@ -3,6 +3,12 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
+    <!-- Portable publish: self-contained single-file exe, not trimmed. -->
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
     <!-- LibVLC natives (VideoLAN.LibVLC.Windows): x64 only, copied to lib\libvlc\ next to the exe. -->
     <VlcWindowsX64TargetDir>lib\libvlc</VlcWindowsX64TargetDir>
     <VlcWindowsX86Enabled>false</VlcWindowsX86Enabled>
@@ -21,5 +27,14 @@
   <ItemGroup>
     <None Include="..\..\third_party\ffmpeg\**" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
+
+
+  <!-- LibVLC and FFmpeg must stay as loose files under lib\ next to the exe (their paths are resolved from AppContext.BaseDirectory);
+       without this, single-file publish bundles their .dll/.exe into ComfyGenReader.exe. -->
+  <Target Name="KeepLibFilesOutOfSingleFile" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Condition="$([System.String]::Copy('%(ResolvedFileToPublish.RelativePath)').StartsWith('lib\'))" ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
 
 </Project>
