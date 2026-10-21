@@ -5,9 +5,8 @@ $root = Split-Path -Parent $PSScriptRoot
 $out  = Join-Path $root 'artifacts\ComfyGenReader'
 $zip  = Join-Path $root 'artifacts\ComfyGenReader-win-x64.zip'
 
-if (-not (Test-Path (Join-Path $root 'third_party\ffmpeg\ffprobe.exe'))) {
-    & (Join-Path $PSScriptRoot 'get-ffmpeg.ps1')
-}
+# Idempotent: re-downloads only when third_party\ffmpeg does not match the pinned sha256.
+& (Join-Path $PSScriptRoot 'get-ffmpeg.ps1')
 
 if (Test-Path $out) { Remove-Item -Recurse -Force $out }
 if (Test-Path $zip) { Remove-Item -Force $zip }

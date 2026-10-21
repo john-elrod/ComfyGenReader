@@ -24,8 +24,16 @@
     <PackageReference Include="VideoLAN.LibVLC.Windows" Version="3.0.24" />
   </ItemGroup>
 
+  <!-- LibVLC plugins not needed for local-file playback, pruned so fewer DLLs are scanned when LibVLC starts.
+       libx26410b (x264 encoder) is also GPL, unlike the rest of what ships. Paths are relative to the package's
+       build\x64\ folder; %2A%2A is an escaped ** (expanded by the package's targets, not here). -->
   <ItemGroup>
-    <None Include="..\..\third_party\ffmpeg\**" Exclude="..\..\third_party\ffmpeg\ffplay.exe" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <VlcWindowsX64ExcludeFiles Include="plugins\stream_out\%2A%2A;plugins\access_output\%2A%2A;plugins\mux\%2A%2A;plugins\visualization\%2A%2A;plugins\services_discovery\%2A%2A;plugins\video_splitter\%2A%2A;plugins\keystore\%2A%2A" />
+    <VlcWindowsX64ExcludeFiles Include="plugins\codec\libx26410b_plugin.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\third_party\ffmpeg\**" Exclude="..\..\third_party\ffmpeg\ffplay.exe;..\..\third_party\ffmpeg\.lock-sha256" Link="lib\ffmpeg\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 
