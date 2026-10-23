@@ -17,6 +17,8 @@ public static class JsonText
         Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
     };
 
+    private static readonly JsonSerializerOptions CompactOptions = new() { Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+
     /// <summary>
     /// Parses text as JSON, accepting only a top-level object or array. Standalone
     /// NaN, Infinity and -Infinity tokens outside string literals are read as null.
@@ -44,6 +46,8 @@ public static class JsonText
     public static JsonNode? ExpandEmbedded(JsonNode? node) => Expand(node, 0);
 
     public static string ToExportJson(JsonNode node) => node.ToJsonString(ExportOptions);
+
+    public static string ToCompactJson(JsonNode node) => node.ToJsonString(CompactOptions);
 
     private static JsonNode? Expand(JsonNode? node, int depth)
     {

@@ -3,7 +3,8 @@ using ComfyGenReader.Core.Json;
 
 namespace ComfyGenReader.Core.Metadata;
 
-public sealed record MetadataResult(JsonObject Raw, JsonNode? Prompt, JsonNode? Workflow)
+/// <param name="WorkflowText">The workflow's JSON text exactly as stored in the file; null when there is no workflow.</param>
+public sealed record MetadataResult(JsonObject Raw, JsonNode? Prompt, JsonNode? Workflow, string? WorkflowText = null)
 {
     public string? ExportJson
     {

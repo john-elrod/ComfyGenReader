@@ -12,6 +12,7 @@ namespace ComfyGenReader.Controls;
 
 /// <summary>
 /// LibVLC video playback with Play/Pause, Stop, a seek bar with frame previews, and Mute.
+/// Each file autoplays muted and loops.
 /// The control itself is the video surface; <see cref="ControlsBar"/> is placed by the host.
 /// </summary>
 public partial class VideoPlayer : UserControl, IDisposable
@@ -92,6 +93,11 @@ public partial class VideoPlayer : UserControl, IDisposable
         var mp = player!;
         mp.Mute = true;
         using var media = new Media(libVlc!, path, FromType.FromPath);
+        // Autoplay and loop: LibVLC restarts the input itself, with no Stop/Play gap (65535 is the option's maximum).
+        media.AddOption(":input-repeat=65535");
+        // View's native surface only exists once the just-shown control is laid out, and that hands its HWND to the
+        // player. Without it, VLC can start first and open its own top-level window instead of drawing in View.
+        if (mp.Hwnd == IntPtr.Zero) View.UpdateLayout();
         if (!mp.Play(media))
             throw new InvalidOperationException($"LibVLC could not start {Path.GetFileName(path)}.");
     }

@@ -31,8 +31,10 @@ public partial class App : Application
 
         try
         {
+            var settings = new AppSettings(AppSettings.DefaultPath);
+            Theme.Apply(this, settings.DarkMode);
             session = new ReaderSession(new MetadataLoader(), new RecentFiles(RecentFiles.DefaultPath));
-            new MainWindow(session).Show();
+            new MainWindow(session, settings).Show();
         }
         catch (Exception ex)
         {

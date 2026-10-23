@@ -15,6 +15,13 @@ public static class ComfyFields
     static readonly Dictionary<string, int> SeedWidgetIndex = new(StringComparer.Ordinal)
     {
         ["KSampler"] = 0, ["KSamplerAdvanced"] = 1, ["SamplerCustom"] = 1, ["RandomNoise"] = 0,
+        ["DaSiWa_SeedControl"] = 0, // Dasiwa workflows; its second widget is a state blob whose last_seed/recent are history
+    };
+    // Node types that hold the prompt themselves (API input name, widgets_values index), checked before CLIPTextEncode.
+    // MiniMaxH3Director: the Dasiwa MiniMax H3 workflow, which has no CLIPTextEncode; its timeline_data repeats the prompt.
+    static readonly Dictionary<string, (string Input, int Widget)> PromptNodes = new(StringComparer.Ordinal)
+    {
+        ["MiniMaxH3Director"] = ("prompt", 1),
     };
 
     public static ComfyHighlights Extract(JsonNode? apiPrompt, JsonNode? workflow)
@@ -49,7 +56,7 @@ public static class ComfyFields
         foreach (var (_, node) in nodes)
         {
             if (Inputs(node) is not { } inputs) continue;
-            var value = inputs["seed"] ?? inputs["noise_seed"];
+            var value = inputs["seed"] ?? inputs["noise_seed"] ?? inputs["seed_value"]; // seed_value: DaSiWa_SeedControl
             if (value is null) continue;
             var text = Resolve(value, nodes, 0);
             if (text is not null && !seeds.Contains(text)) seeds.Add(text);
@@ -59,6 +66,11 @@ public static class ComfyFields
 
     static string ApiPrompt(List<(string Id, JsonObject Node)> nodes)
     {
+        foreach (var (_, node) in nodes)
+        {
+            if (Scalar(node["class_type"]) is { } cls && PromptNodes.TryGetValue(cls, out var known)
+                && Inputs(node)?[known.Input] is { } value && Resolve(value, nodes, 0) is { Length: > 0 } text) return text;
+        }
         foreach (var (_, node) in nodes)
         {
             if (Inputs(node) is not { } inputs || !TryLink(inputs["positive"], out var targetId)) continue;
@@ -147,6 +159,9 @@ public static class ComfyFields
     static string WorkflowPrompt(JsonArray? nodes, JsonArray? links)
     {
         var typed = TypedNodes(nodes).ToList();
+        foreach (var (node, type) in typed)
+            if (PromptNodes.TryGetValue(type, out var known) && Widgets(node) is { } w && known.Widget < w.Count
+                && Scalar(w[known.Widget]) is { Length: > 0 } text) return text;
         // Prefer the CLIPTextEncode wired to a sampler's "positive" input; nodes[] order may put the negative first.
         foreach (var (node, _) in typed)
         {

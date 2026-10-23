@@ -3,7 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="clr-namespace:ComfyGenReader.Controls"
         Title="ComfyGenReader"
-        Width="1200" Height="800" MinWidth="400" MinHeight="400">
+        Width="1200" Height="800" MinWidth="400" MinHeight="400"
+        PreviewKeyDown="Window_PreviewKeyDown">
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -20,6 +21,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
             <TextBox x:Name="PathBox" Grid.Column="0" VerticalContentAlignment="Center"
@@ -27,13 +29,15 @@
                      KeyDown="PathBox_KeyDown" />
             <Button Grid.Column="1" Margin="6,0,0,0" Padding="10,2" Content="Browse…" Click="Browse_Click" />
             <Button Grid.Column="2" Margin="6,0,0,0" Padding="10,2" Content="GO" Click="Go_Click" />
+            <ToggleButton x:Name="DarkModeToggle" Grid.Column="3" Margin="6,0,0,0" Padding="10,2" Content="Dark mode"
+                          ToolTip="Switch between the dark and light theme" />
 
-            <Grid Grid.Row="1" Grid.ColumnSpan="3" Margin="0,6,0,0">
+            <Grid Grid.Row="1" Grid.ColumnSpan="4" Margin="0,6,0,0">
                 <ComboBox x:Name="RecentCombo" IsEditable="False"
                           ItemsSource="{Binding Recent}"
                           SelectionChanged="RecentCombo_SelectionChanged" />
                 <TextBlock Text="Recent files" IsHitTestVisible="False" Margin="7,0,0,0" VerticalAlignment="Center"
-                           Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}">
+                           Foreground="{DynamicResource TextFillColorSecondaryBrush}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -79,10 +83,10 @@
                         </StackPanel.Style>
                         <TextBlock Text="&#xE896;" FontFamily="Segoe MDL2 Assets" FontSize="48"
                                    HorizontalAlignment="Center"
-                                   Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                         <TextBlock Text="Drag a file here" FontSize="16" Margin="0,8,0,0"
                                    HorizontalAlignment="Center"
-                                   Foreground="{DynamicResource {x:Static SystemColors.GrayTextBrushKey}}" />
+                                   Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                     </StackPanel>
                 </Grid>
 
@@ -118,10 +122,53 @@
                 </GroupBox>
 
                 <GroupBox Grid.Row="1" Header="Raw" Margin="0,6,0,0">
-                    <TextBox IsReadOnly="True" Margin="4" FontFamily="Consolas"
-                             TextWrapping="NoWrap" AcceptsReturn="True"
-                             HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
-                             Text="{Binding RawText, Mode=OneWay}" />
+                    <Grid Margin="4">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,4">
+                            <ToggleButton x:Name="WrapToggle" Padding="6,0" Content="Wrap" ToolTip="Word wrap" IsChecked="True" />
+                            <ToggleButton Margin="4,0,0,0" Padding="6,0" Content="Raw"
+                                          ToolTip="Show the metadata exactly as stored in the file (off: formatted, line breaks fixed)"
+                                          IsChecked="{Binding ShowUnmodified}" />
+                        </StackPanel>
+
+                        <!-- Find bar (Ctrl+F), case-insensitive. Right-docked children sit right to left. -->
+                        <DockPanel x:Name="FindBar" Grid.Row="1" Margin="0,0,0,4" Visibility="Collapsed">
+                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="6,0" Content="✕"
+                                    ToolTip="Close (Esc)" Click="FindClose_Click" />
+                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="6,0" Content="▼"
+                                    ToolTip="Next (Enter, F3)" Click="FindNext_Click" />
+                            <Button DockPanel.Dock="Right" Margin="4,0,0,0" Padding="6,0" Content="▲"
+                                    ToolTip="Previous (Shift+Enter, Shift+F3)" Click="FindPrevious_Click" />
+                            <TextBlock x:Name="FindStatus" DockPanel.Dock="Right" Margin="6,0,0,0" VerticalAlignment="Center"
+                                       Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
+                            <TextBox x:Name="FindBox" VerticalContentAlignment="Center"
+                                     TextChanged="FindBox_TextChanged" KeyDown="FindBox_KeyDown" />
+                        </DockPanel>
+
+                        <!-- Search matches are painted behind the text: RawBox is transparent over the highlighter.
+                             RawBox has no local Style (it would replace the theme's), so WrapToggle sets TextWrapping in code. -->
+                        <Border Grid.Row="2" Background="{DynamicResource TextControlBackground}"
+                                CornerRadius="{DynamicResource ControlCornerRadius}">
+                            <controls:MatchHighlighter x:Name="Highlighter" IsHitTestVisible="False"
+                                                       MatchBrush="{DynamicResource FindMatchBrush}"
+                                                       CurrentBrush="{DynamicResource FindCurrentMatchBrush}" />
+                        </Border>
+                        <TextBox x:Name="RawBox" Grid.Row="2" IsReadOnly="True" FontFamily="Consolas" Background="Transparent"
+                                 AcceptsReturn="True" TextWrapping="Wrap"
+                                 HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
+                                 Text="{Binding RawText, Mode=OneWay}" TextChanged="RawBox_TextChanged">
+                            <!-- The theme repaints a TextBox's background on hover and focus, which would cover the highlighter. -->
+                            <TextBox.Resources>
+                                <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent" />
+                                <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent" />
+                            </TextBox.Resources>
+                        </TextBox>
+                    </Grid>
                 </GroupBox>
 
                 <Button Grid.Row="2" Content="Export" HorizontalAlignment="Right" Margin="0,6,0,0" Padding="10,2"

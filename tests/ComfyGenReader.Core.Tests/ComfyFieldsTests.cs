@@ -74,4 +74,35 @@ public class ComfyFieldsTests
         var p = JsonNode.Parse("""{"x":5,"2":{"inputs":3},"10":{"class_type":"CLIPTextEncode","inputs":{"text":"ten"}},"9":{"class_type":"CLIPTextEncode","inputs":{"text":"nine"}}}""");
         Assert.Equal("nine", ComfyFields.Extract(p, null).Prompt);
     }
+    [Fact] public void Prompt_MiniMaxH3Director_UsesFirstDirectorPrompt()
+    {
+        // The Dasiwa MiniMax H3 workflow: no CLIPTextEncode; the prompt is the director's "prompt" input
+        // (repeated inside its timeline_data, which is ignored).
+        var p = JsonNode.Parse("""
+            {"1":{"class_type":"MiniMaxH3DirectorGuide","inputs":{"guide":["2730",0]}},
+             "2730":{"class_type":"MiniMaxH3Director","inputs":{"mode":"REF2VA","prompt":"first","timeline_data":"{\"simple_prompt\":\"first\"}"}},
+             "2731":{"class_type":"MiniMaxH3Director","inputs":{"prompt":"second"}}}
+            """);
+        Assert.Equal("first", ComfyFields.Extract(p, null).Prompt);
+    }
+    [Fact] public void Prompt_MiniMaxH3Director_WinsOverClipTextEncode()
+    {
+        var p = JsonNode.Parse("""{"5":{"class_type":"CLIPTextEncode","inputs":{"text":"other"}},"9":{"class_type":"MiniMaxH3Director","inputs":{"prompt":"director"}}}""");
+        Assert.Equal("director", ComfyFields.Extract(p, null).Prompt);
+    }
+    [Fact] public void Seed_DasiwaSeedControl_UsesSeedValue()
+    {
+        var p = JsonNode.Parse("""{"2739":{"class_type":"DaSiWa_SeedControl","inputs":{"seed_value":2,"seed_control_state":"{\"last_seed\":\"9\",\"recent\":[\"9\"]}"}}}""");
+        Assert.Equal("2", ComfyFields.Extract(p, null).Seed);
+    }
+    [Fact] public void WorkflowSeed_DasiwaSeedControl_UsesFirstWidget()
+    {
+        var w = JsonNode.Parse("""{"nodes":[{"id":2739,"type":"DaSiWa_SeedControl","widgets_values":[2,"{\"last_seed\":\"9\"}",""]}]}""");
+        Assert.Equal("2", ComfyFields.Extract(null, w).Seed);
+    }
+    [Fact] public void WorkflowPrompt_MiniMaxH3Director_UsesPromptWidget()
+    {
+        var w = JsonNode.Parse("""{"nodes":[{"id":5,"type":"CLIPTextEncode","widgets_values":["other"]},{"id":2730,"type":"MiniMaxH3Director","widgets_values":["REF2VA","director",832,832]}]}""");
+        Assert.Equal("director", ComfyFields.Extract(null, w).Prompt);
+    }
 }

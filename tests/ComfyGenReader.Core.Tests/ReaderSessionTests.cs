@@ -100,7 +100,37 @@ public sealed class ReaderSessionTests : IDisposable
     {
         loader.Result = MetadataParser.Parse([new("Exif IFD0/Make", "Canon")]);
         await s.OpenAsync(jpg, OpenSource.User);
-        Assert.False(s.CanExport); Assert.Equal("", s.SeedText); Assert.Contains("Canon", s.RawText);
+        Assert.False(s.CanExport); Assert.Equal("", s.SeedText); Assert.Equal(ReaderSession.NoWorkflowText, s.RawText);
+    }
+    [Fact] public async Task Raw_ShowsOnlyTheWorkflow_FormattedOrVerbatim()
+    {
+        const string workflow = "{\"nodes\":[],\"t\":\"a\\nb\"}";
+        loader.Result = MetadataParser.Parse([new("PROMPT", ComfySamples.ApiPrompt), new("WORKFLOW", workflow), new("ENCODER", "Lavf")]);
+        await s.OpenAsync(jpg, OpenSource.User);
+        Assert.Equal("{\n  \"nodes\": [],\n  \"t\": \"a\nb\"\n}", s.RawText.ReplaceLineEndings("\n"));
+
+        s.ShowUnmodified = true;
+        Assert.Equal(workflow, s.RawText);
+        await s.OpenAsync(next, OpenSource.User);
+        Assert.Equal(workflow, s.RawText);
+
+        s.ShowUnmodified = false;
+        Assert.Contains("a\nb", s.RawText);
+    }
+    [Fact] public async Task Raw_PromptOnly_SaysNoWorkflow()
+    {
+        loader.Result = MetadataParser.Parse([new("prompt", ComfySamples.ApiPrompt)]);
+        await s.OpenAsync(jpg, OpenSource.User);
+        Assert.Equal(ReaderSession.NoWorkflowText, s.RawText);
+        s.ShowUnmodified = true;
+        Assert.Equal(ReaderSession.NoWorkflowText, s.RawText);
+    }
+    [Fact] public async Task ShowUnmodified_LeavesErrorsAlone()
+    {
+        await s.OpenAsync(jpg, OpenSource.User);
+        await s.OpenAsync(gif, OpenSource.User);
+        s.ShowUnmodified = true;
+        Assert.Equal("Unsupported file type: .gif", s.RawText);
     }
     [Fact] public async Task Open_ClearsPreviousHighlightsWhileLoading()
     {
@@ -123,7 +153,7 @@ public sealed class ReaderSessionTests : IDisposable
         Assert.True(await s.OpenAsync(next, OpenSource.User));
         first.SetResult();
         Assert.False(await older);
-        Assert.Equal(next, s.CurrentFile); Assert.Contains("Canon", s.RawText);
+        Assert.Equal(next, s.CurrentFile); Assert.Equal(ReaderSession.NoWorkflowText, s.RawText);
     }
     [Fact] public async Task Open_SupersededLoaderCancellation_IsNotAnError()
     {

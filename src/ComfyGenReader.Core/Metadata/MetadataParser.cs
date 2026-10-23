@@ -12,7 +12,8 @@ public static class MetadataParser
     {
         var raw = new JsonObject();
         var names = new Dictionary<string, int>(StringComparer.Ordinal);
-        var strippedNames = new List<(string Name, JsonNode Node)>();
+        // Each parsed tag with the exact JSON text it was parsed from (after any "name:" prefix).
+        var strippedNames = new List<(string Name, JsonNode Node, string Text)>();
 
         foreach (var (key, value) in tags)
         {
@@ -27,6 +28,7 @@ public static class MetadataParser
 
             string? prefix = null;
             JsonNode? parsed = null;
+            var text = value;
             if (JsonText.TryParseLenient(value, out var node))
                 parsed = node;
             else
@@ -36,6 +38,7 @@ public static class MetadataParser
                 {
                     parsed = node;
                     prefix = m.Groups[1].Value;
+                    text = value[m.Length..];
                 }
             }
 
@@ -46,26 +49,32 @@ public static class MetadataParser
             }
             // Deep expansion is for display only; Prompt/Workflow keep JSON-looking widget strings as strings.
             raw[uniqueKey] = JsonText.ExpandEmbedded(parsed)!;
-            strippedNames.Add((prefix ?? key, parsed));
+            strippedNames.Add((prefix ?? key, parsed, text));
         }
 
-        JsonNode? Find(string name)
+        (JsonNode Node, string Text)? Find(string name)
         {
-            foreach (var (n, node) in strippedNames)
+            foreach (var (n, node, text) in strippedNames)
                 if (string.Equals(n, name, StringComparison.OrdinalIgnoreCase) && node is JsonObject)
-                    return node.DeepClone();
-            foreach (var (_, node) in strippedNames)
+                    return (node.DeepClone(), text);
+            foreach (var (_, node, _) in strippedNames)
                 if (node is JsonObject obj)
                     foreach (var p in obj)
-                        if (string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase) && UnwrapOnce(p.Value) is JsonObject found)
-                            return found.DeepClone();
+                        if (string.Equals(p.Key, name, StringComparison.OrdinalIgnoreCase) && UnwrapOnce(p.Value) is (JsonObject found, var text))
+                            return (found.DeepClone(), text);
             return null;
         }
 
-        return new MetadataResult(raw, Find("prompt"), Find("workflow"));
+        var workflow = Find("workflow");
+        return new MetadataResult(raw, Find("prompt")?.Node, workflow?.Node, workflow?.Text);
     }
 
-    /// <summary>A property value, or what it encodes when it is a JSON string (VHS double-encodes prompt/workflow).</summary>
-    private static JsonNode? UnwrapOnce(JsonNode? value) =>
-        value is JsonValue v && v.TryGetValue<string>(out var s) && JsonText.TryParseLenient(s, out var inner) ? inner : value;
+    /// <summary>
+    /// A property value, or what it encodes when it is a JSON string (VHS double-encodes prompt/workflow), with its JSON
+    /// text: the string itself, or for a nested value (whose original text is not kept) its compact serialization.
+    /// </summary>
+    private static (JsonNode? Node, string Text) UnwrapOnce(JsonNode? value) =>
+        value is JsonValue v && v.TryGetValue<string>(out var s) && JsonText.TryParseLenient(s, out var inner)
+            ? (inner, s)
+            : (value, value is null ? "null" : JsonText.ToCompactJson(value));
 }

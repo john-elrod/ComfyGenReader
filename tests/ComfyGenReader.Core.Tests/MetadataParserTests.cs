@@ -43,6 +43,25 @@ public class MetadataParserTests
         Assert.Equal("2", (string)r.Raw["a (2)"]!);
         Assert.Equal("3", (string)r.Raw["a (3)"]!);
     }
+    [Fact] public void WorkflowText_WorkflowTag_IsTheValueVerbatim()
+    {
+        const string value = " {\"nodes\": [], \"x\": NaN, \"t\": \"1\\n2 \\u00e9\"}\r\n";
+        Assert.Equal(value, MetadataParser.Parse([T("prompt", ComfySamples.ApiPrompt), T("WORKFLOW", value)]).WorkflowText);
+    }
+    [Fact] public void WorkflowText_ExifPrefixed_IsTheTextAfterThePrefix() =>
+        Assert.Equal(ComfySamples.Workflow, MetadataParser.Parse([T("Exif IFD0/Make", "workflow:" + ComfySamples.Workflow)]).WorkflowText);
+    [Fact] public void WorkflowText_DoubleEncodedInComment_IsTheDecodedString()
+    {
+        var comment = new JsonObject { ["prompt"] = ComfySamples.ApiPrompt, ["workflow"] = ComfySamples.Workflow }.ToJsonString();
+        Assert.Equal(ComfySamples.Workflow, MetadataParser.Parse([T("COMMENT", comment)]).WorkflowText);
+    }
+    [Fact] public void WorkflowText_NestedObject_IsItsCompactJson()
+    {
+        var r = MetadataParser.Parse([T("COMMENT", "{\"workflow\": {\"nodes\": [], \"t\": \"é\"}}")]);
+        Assert.Equal("{\"nodes\":[],\"t\":\"é\"}", r.WorkflowText);
+    }
+    [Fact] public void WorkflowText_NoWorkflow_IsNull() =>
+        Assert.Null(MetadataParser.Parse([T("prompt", ComfySamples.ApiPrompt)]).WorkflowText);
     [Fact] public void Parse_UppercasePromptKey_AndNonObjectIgnored()
     {
         var r = MetadataParser.Parse([T("PROMPT", ComfySamples.ApiPrompt), T("workflow", "[1,2]")]);

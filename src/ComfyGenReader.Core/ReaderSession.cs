@@ -22,6 +22,8 @@ public sealed class ReaderSession : INotifyPropertyChanged
     private string? exportJson;
     private bool canGoPrevious;
     private bool canGoNext;
+    private bool showUnmodified;
+    private MetadataResult? shownResult; // what RawText renders; null while it shows a message or an error
 
     public ReaderSession(IMetadataLoader loader, RecentFiles recent)
     {
@@ -43,6 +45,18 @@ public sealed class ReaderSession : INotifyPropertyChanged
     public bool CanExport => exportJson != null;
     public IReadOnlyList<string> Recent => recent.Items;
 
+    public const string NoWorkflowText = "No ComfyUI workflow found in this file.";
+
+    /// <summary>Raw shows the workflow exactly as stored in the file instead of formatted (escapes such as \n expanded).</summary>
+    public bool ShowUnmodified
+    {
+        get => showUnmodified;
+        set
+        {
+            if (Set(ref showUnmodified, value) && shownResult is { } result) RawText = RenderRaw(result);
+        }
+    }
+
     public string? ExportJson
     {
         get => exportJson;
@@ -61,12 +75,12 @@ public sealed class ReaderSession : INotifyPropertyChanged
         if (!SupportedFiles.IsSupported(path))
         {
             var ext = Path.GetExtension(path);
-            RawText = $"Unsupported file type: {(ext.Length == 0 ? "(none)" : ext)}";
+            ShowMessage($"Unsupported file type: {(ext.Length == 0 ? "(none)" : ext)}");
             return false;
         }
         if (!File.Exists(path))
         {
-            RawText = $"File not found: {path}";
+            ShowMessage($"File not found: {path}");
             return false;
         }
 
@@ -80,7 +94,7 @@ public sealed class ReaderSession : INotifyPropertyChanged
         SeedText = "";
         PromptText = "";
         ExportJson = null;
-        RawText = "Loading…";
+        ShowMessage("Loading…");
         CanGoPrevious = FolderNavigator.Previous(path) != null;
         CanGoNext = FolderNavigator.Next(path) != null;
         if (source == OpenSource.User) recent.Add(path);
@@ -90,7 +104,8 @@ public sealed class ReaderSession : INotifyPropertyChanged
             var result = await loader.LoadAsync(path, ct);
             if (ct.IsCancellationRequested) return false;
             var highlights = ComfyFields.Extract(result.Prompt, result.Workflow);
-            RawText = DisplayFormatter.ToDisplayText(result.Raw);
+            shownResult = result;
+            RawText = RenderRaw(result);
             SeedText = highlights.Seed;
             PromptText = highlights.Prompt;
             ExportJson = result.ExportJson;
@@ -107,7 +122,19 @@ public sealed class ReaderSession : INotifyPropertyChanged
 
     public Task GoPreviousAsync() => GoAsync(FolderNavigator.Previous);
 
-    public void ShowError(Exception ex) => RawText = ErrorFormatter.Format(ex);
+    public void ShowError(Exception ex) => ShowMessage(ErrorFormatter.Format(ex));
+
+    private void ShowMessage(string text)
+    {
+        shownResult = null;
+        RawText = text;
+    }
+
+    /// <summary>Raw shows only the workflow: as stored in the file, or formatted with embedded JSON and escapes expanded.</summary>
+    private string RenderRaw(MetadataResult result) =>
+        result.Workflow is null ? NoWorkflowText
+        : showUnmodified ? result.WorkflowText ?? ""
+        : DisplayFormatter.ToDisplayText(JsonText.ExpandEmbedded(result.Workflow));
 
     private Task GoAsync(Func<string, string?> neighbour) =>
         currentFile is not null && neighbour(currentFile) is { } target

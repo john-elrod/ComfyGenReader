@@ -1,0 +1,18 @@
+subject_definitions:
+<Subject 1> appears in <Picture 1>. It is a black and white logo on a printed paper. It reads "League" on the top in black and white text, and "Ninja" on the bottom in white and black text. A black outline surrounds the entire piece. It is a minimalistic black and white logo.
+
+summary:
+[reference generation] <Subject 1> is folded into a black and white origami flower on a black background.
+ 
+retention_analysis:
+<Subject 1> (appears in all shots): fully_preserved
+detailed_description:
+
+
+[Shot 1] the scene starts with <Picture 1>
+
+[Shot 2] At 00:01.000, <Subject 1> from <Picture 1> begins to transform, without any assistance, into an origami flower, on a plain black background. Traces of <Subject 1> logo elements can be seen on the new shape. As the paper folders, appropriate paper crinkling can be heard.
+
+overall_soundscape: N/A.
+
+non_diegetic_music: N/A.
