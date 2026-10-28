@@ -162,6 +162,9 @@ public partial class VideoPlayer : UserControl, IDisposable
             catch (Exception ex) { Failed?.Invoke(this, ex); }
         });
 
+    // Clicking the picture toggles playback, like the Play/Pause button.
+    private void Surface_MouseLeftButtonUp(object sender, MouseButtonEventArgs e) => PlayPause_Click(sender, e);
+
     private void PlayPause_Click(object sender, RoutedEventArgs e)
     {
         try

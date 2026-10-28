@@ -54,8 +54,8 @@
 
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*" />
                 <ColumnDefinition Width="6*" />
-                <ColumnDefinition Width="4*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left frame: preview (image or video), video controls, navigation -->
@@ -100,28 +100,151 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Right frame: highlights, raw metadata, export -->
+            <!-- Middle column (seed, raw metadata, export) and right column (prompt) share this grid, 2*:4*, so the page is 3:2:4.
+                 They sit in one grid because the scroll bar styles below serve both. -->
             <Grid Grid.Column="1" Margin="3,0,6,6">
+                <!-- Fluent shows only a thin thumb until the pointer is over the bar, so Prompt and Raw (the only boxes here
+                     with scroll bars on) get the expanded look all the time: track, arrows and a wider thumb.
+                     Same 12px footprint as Fluent's, so the text layout does not change. -->
+                <Grid.Resources>
+                    <Style x:Key="ScrollBarArrowStyle" TargetType="RepeatButton">
+                        <Setter Property="OverridesDefaultStyle" Value="True" />
+                        <Setter Property="Focusable" Value="False" />
+                        <Setter Property="Foreground" Value="{DynamicResource ScrollBarButtonArrowForeground}" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="RepeatButton">
+                                    <Border Width="12" Height="12" Background="Transparent">
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="8"
+                                                   FontFamily="{DynamicResource SymbolThemeFontFamily}"
+                                                   Foreground="{TemplateBinding Foreground}"
+                                                   Text="{Binding Content, RelativeSource={RelativeSource TemplatedParent}}" />
+                                    </Border>
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                    <Style x:Key="ScrollBarPageStyle" TargetType="RepeatButton">
+                        <Setter Property="OverridesDefaultStyle" Value="True" />
+                        <Setter Property="Focusable" Value="False" />
+                        <Setter Property="IsTabStop" Value="False" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="RepeatButton">
+                                    <Border Background="Transparent" />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                    <Style x:Key="ScrollBarThumbStyle" TargetType="Thumb">
+                        <Setter Property="OverridesDefaultStyle" Value="True" />
+                        <Setter Property="Focusable" Value="False" />
+                        <Setter Property="Template">
+                            <Setter.Value>
+                                <ControlTemplate TargetType="Thumb">
+                                    <Border Background="{DynamicResource ScrollBarThumbFill}" CornerRadius="4" />
+                                </ControlTemplate>
+                            </Setter.Value>
+                        </Setter>
+                    </Style>
+                    <Style TargetType="ScrollBar">
+                        <!-- Cursor is inherited, so without this the bars show the TextBox's I-beam. -->
+                        <Setter Property="Cursor" Value="Arrow" />
+                        <Setter Property="OverridesDefaultStyle" Value="True" />
+                        <Setter Property="SnapsToDevicePixels" Value="True" />
+                        <Style.Triggers>
+                            <Trigger Property="Orientation" Value="Vertical">
+                                <Setter Property="Width" Value="12" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ScrollBar">
+                                            <Border Background="{DynamicResource ScrollBarTrackFillPointerOver}" CornerRadius="6">
+                                                <Grid>
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto" />
+                                                        <RowDefinition Height="*" />
+                                                        <RowDefinition Height="Auto" />
+                                                    </Grid.RowDefinitions>
+                                                    <RepeatButton Grid.Row="0" Style="{StaticResource ScrollBarArrowStyle}"
+                                                                  Command="ScrollBar.LineUpCommand" Content="&#xEDDB;" />
+                                                    <Track x:Name="PART_Track" Grid.Row="1" Width="8" IsDirectionReversed="True">
+                                                        <Track.DecreaseRepeatButton>
+                                                            <RepeatButton Style="{StaticResource ScrollBarPageStyle}" Command="ScrollBar.PageUpCommand" />
+                                                        </Track.DecreaseRepeatButton>
+                                                        <Track.Thumb>
+                                                            <Thumb Style="{StaticResource ScrollBarThumbStyle}" />
+                                                        </Track.Thumb>
+                                                        <Track.IncreaseRepeatButton>
+                                                            <RepeatButton Style="{StaticResource ScrollBarPageStyle}" Command="ScrollBar.PageDownCommand" />
+                                                        </Track.IncreaseRepeatButton>
+                                                    </Track>
+                                                    <RepeatButton Grid.Row="2" Style="{StaticResource ScrollBarArrowStyle}"
+                                                                  Command="ScrollBar.LineDownCommand" Content="&#xEDDC;" />
+                                                </Grid>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="Orientation" Value="Horizontal">
+                                <Setter Property="Height" Value="12" />
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="ScrollBar">
+                                            <Border Background="{DynamicResource ScrollBarTrackFillPointerOver}" CornerRadius="6">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <RepeatButton Grid.Column="0" Style="{StaticResource ScrollBarArrowStyle}"
+                                                                  Command="ScrollBar.LineLeftCommand" Content="&#xEDD9;" />
+                                                    <Track x:Name="PART_Track" Grid.Column="1" Height="8">
+                                                        <Track.DecreaseRepeatButton>
+                                                            <RepeatButton Style="{StaticResource ScrollBarPageStyle}" Command="ScrollBar.PageLeftCommand" />
+                                                        </Track.DecreaseRepeatButton>
+                                                        <Track.Thumb>
+                                                            <Thumb Style="{StaticResource ScrollBarThumbStyle}" />
+                                                        </Track.Thumb>
+                                                        <Track.IncreaseRepeatButton>
+                                                            <RepeatButton Style="{StaticResource ScrollBarPageStyle}" Command="ScrollBar.PageRightCommand" />
+                                                        </Track.IncreaseRepeatButton>
+                                                    </Track>
+                                                    <RepeatButton Grid.Column="2" Style="{StaticResource ScrollBarArrowStyle}"
+                                                                  Command="ScrollBar.LineRightCommand" Content="&#xEDDA;" />
+                                                </Grid>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Grid.Resources>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="4*" />
+                </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <GroupBox Grid.Row="0" Header="Highlights">
-                    <StackPanel Margin="4">
-                        <TextBlock Text="Seed" />
-                        <TextBox IsReadOnly="True" Margin="0,2,0,6"
-                                 Text="{Binding SeedText, Mode=OneWay}" />
-                        <TextBlock Text="Prompt" />
-                        <TextBox IsReadOnly="True" Margin="0,2,0,0"
-                                 TextWrapping="Wrap" AcceptsReturn="True"
-                                 VerticalScrollBarVisibility="Visible" MinLines="5" MaxLines="5"
-                                 Text="{Binding PromptText, Mode=OneWay}" />
-                    </StackPanel>
+                <GroupBox Grid.Row="0" Grid.Column="0" Header="Seed" Margin="0,0,3,0">
+                    <TextBox IsReadOnly="True" IsReadOnlyCaretVisible="True" Margin="4"
+                             Text="{Binding SeedText, Mode=OneWay}" />
                 </GroupBox>
 
-                <GroupBox Grid.Row="1" Header="Raw" Margin="0,6,0,0">
+                <GroupBox Grid.Row="0" Grid.RowSpan="3" Grid.Column="1" Header="Prompt" Margin="3,0,0,0">
+                    <TextBox IsReadOnly="True" IsReadOnlyCaretVisible="True" Margin="4"
+                             TextWrapping="Wrap" AcceptsReturn="True"
+                             VerticalScrollBarVisibility="Visible"
+                             Text="{Binding PromptText, Mode=OneWay}" />
+                </GroupBox>
+
+                <GroupBox Grid.Row="1" Grid.Column="0" Header="Raw" Margin="0,6,3,0">
                     <Grid Margin="4">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -158,7 +281,8 @@
                                                        MatchBrush="{DynamicResource FindMatchBrush}"
                                                        CurrentBrush="{DynamicResource FindCurrentMatchBrush}" />
                         </Border>
-                        <TextBox x:Name="RawBox" Grid.Row="2" IsReadOnly="True" FontFamily="Consolas" Background="Transparent"
+                        <TextBox x:Name="RawBox" Grid.Row="2" IsReadOnly="True" IsReadOnlyCaretVisible="True"
+                                 FontFamily="Consolas" Background="Transparent"
                                  AcceptsReturn="True" TextWrapping="Wrap"
                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto"
                                  Text="{Binding RawText, Mode=OneWay}" TextChanged="RawBox_TextChanged">
@@ -171,7 +295,7 @@
                     </Grid>
                 </GroupBox>
 
-                <Button Grid.Row="2" Content="Export" HorizontalAlignment="Right" Margin="0,6,0,0" Padding="10,2"
+                <Button Grid.Row="2" Grid.Column="0" Content="Export" HorizontalAlignment="Right" Margin="0,6,3,0" Padding="10,2"
                         IsEnabled="{Binding CanExport}" Click="Export_Click" />
             </Grid>
         </Grid>

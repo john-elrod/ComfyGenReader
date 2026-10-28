@@ -7,7 +7,8 @@
     <Grid x:Name="Parts">
         <vlc:VideoView x:Name="View">
             <!-- VideoView's native HWND swallows WPF drag events; this near-transparent overlay receives them. -->
-            <Grid x:Name="DropOverlay" x:FieldModifier="public" Background="#01000000" AllowDrop="True">
+            <Grid x:Name="DropOverlay" x:FieldModifier="public" Background="#01000000" AllowDrop="True"
+                  MouseLeftButtonUp="Surface_MouseLeftButtonUp">
                 <TextBlock x:Name="PreparingText" Text="Preparing video player…" Visibility="Collapsed"
                            Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Grid>
