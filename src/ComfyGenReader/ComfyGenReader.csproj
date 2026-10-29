@@ -3,6 +3,7 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- Portable publish: self-contained single-file exe, not trimmed. -->
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
