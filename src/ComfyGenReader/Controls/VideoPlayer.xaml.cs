@@ -11,7 +11,7 @@ using LibVLCSharp.Shared;
 namespace ComfyGenReader.Controls;
 
 /// <summary>
-/// LibVLC video playback with Play/Pause, Stop, a seek bar with frame previews, and Mute.
+/// LibVLC video playback with Play/Pause, a seek bar with frame previews, and Mute.
 /// Each file autoplays muted and loops.
 /// The control itself is the video surface; <see cref="ControlsBar"/> is placed by the host.
 /// </summary>
@@ -177,18 +177,6 @@ public partial class VideoPlayer : UserControl, IDisposable
                 mp.Play();
             }
             else mp.Play();
-        }
-        catch (Exception ex) { Failed?.Invoke(this, ex); }
-    }
-
-    private void Stop_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            if (player is not { } mp || currentPath is null) return;
-            mp.Stop();
-            SetSeekBar(0);
-            UpdateTime(0);
         }
         catch (Exception ex) { Failed?.Invoke(this, ex); }
     }

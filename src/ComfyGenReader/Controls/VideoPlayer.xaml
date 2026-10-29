@@ -17,8 +17,6 @@
         <DockPanel x:Name="ControlsBar" x:FieldModifier="public" Margin="0,6,0,0">
             <Button x:Name="PlayPauseButton" DockPanel.Dock="Left" MinWidth="80" Padding="10,2"
                     Content="▶ Play" Click="PlayPause_Click" />
-            <Button x:Name="StopButton" DockPanel.Dock="Left" Margin="6,0,0,0" Padding="10,2"
-                    Content="⏹ Stop" Click="Stop_Click" />
             <Button x:Name="MuteButton" DockPanel.Dock="Right" Margin="6,0,0,0" Padding="8,2"
                     Content="🔇" ToolTip="Unmute" Click="Mute_Click" />
             <TextBlock x:Name="TimeLabel" DockPanel.Dock="Right" Margin="6,0,0,0" VerticalAlignment="Center"

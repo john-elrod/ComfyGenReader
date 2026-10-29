@@ -64,6 +64,11 @@ public partial class MainWindow : Window
         catch (Exception ex) { session.ShowError(ex); }
     }
 
+    private void PreviewHost_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (session.CurrentFile is null) Browse_Click(sender, e);
+    }
+
     private async void Go_Click(object sender, RoutedEventArgs e)
     {
         try { await session.OpenAsync(session.PathText, OpenSource.User); }

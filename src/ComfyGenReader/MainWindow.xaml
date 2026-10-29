@@ -67,7 +67,9 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Grid x:Name="PreviewHost" Grid.Row="0">
+                <!-- Transparent so clicks on the empty area register; with no file open, a click opens Browse. -->
+                <Grid x:Name="PreviewHost" Grid.Row="0" Background="Transparent"
+                      MouseLeftButtonUp="PreviewHost_MouseLeftButtonUp">
                     <Image x:Name="PreviewImage" Stretch="Uniform" StretchDirection="Both" />
                     <controls:VideoPlayer x:Name="Player" Visibility="Collapsed" Failed="Player_Failed" />
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">

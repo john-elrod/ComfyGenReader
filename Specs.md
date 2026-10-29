@@ -28,7 +28,7 @@ Lightweight, portable Windows desktop app that shows ComfyUI (Stable Diffusion) 
 - Files can be dropped onto it; the path box updates to the dropped file.
 - Bottom: **Previous** / **Next** buttons step through supported files in the same folder.
 - Images are scaled to fill the space without distortion (fit to the limiting edge).
-- Videos: Play, Stop, a seek bar that shows a frame preview while scrubbing, Mute/Unmute (muted by default). Scaled like images.
+- Videos: Play/Pause (also by clicking the video), a seek bar that shows a frame preview while scrubbing, Mute/Unmute (muted by default). Scaled like images.
 - Videos autoplay muted and loop.
 
 ## Right frame
